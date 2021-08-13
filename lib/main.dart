@@ -18,23 +18,25 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
+NotificationAppLaunchDetails? notificationAppLaunchDetails;
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('A bg message just showed up :  ${message.messageId}');
 }
 
-void requestIOSPermissions(
-    FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
-  flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-      IOSFlutterLocalNotificationsPlugin>()
-      ?.requestPermissions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-}
+// void requestIOSPermissions(
+//     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
+//   flutterLocalNotificationsPlugin
+//       .resolvePlatformSpecificImplementation<
+//       IOSFlutterLocalNotificationsPlugin>()
+//       ?.requestPermissions(
+//     alert: true,
+//     badge: true,
+//     sound: true,
+//   );
+// }
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +52,8 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
-  requestIOSPermissions(flutterLocalNotificationsPlugin);
+
+  // requestIOSPermissions(flutterLocalNotificationsPlugin);
   runApp(const MyApp());
 }
 
