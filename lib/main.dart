@@ -24,6 +24,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('A bg message just showed up :  ${message.messageId}');
 }
 
+void requestIOSPermissions(
+    FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
+  flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -38,6 +50,7 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
+  requestIOSPermissions(flutterLocalNotificationsPlugin);
   runApp(const MyApp());
 }
 
