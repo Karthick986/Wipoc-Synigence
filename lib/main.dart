@@ -8,6 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:device_info/device_info.dart';
 import 'package:upgrader/upgrader.dart';
+import 'package:uni_links/uni_links.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'high_importance_channel', // id
@@ -17,7 +19,7 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
     playSound: true);
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 NotificationAppLaunchDetails? notificationAppLaunchDetails;
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -25,26 +27,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('A bg message just showed up :  ${message.messageId}');
 }
 
-// void requestIOSPermissions(
-//     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
-//   flutterLocalNotificationsPlugin
-//       .resolvePlatformSpecificImplementation<
-//       IOSFlutterLocalNotificationsPlugin>()
-//       ?.requestPermissions(
-//     alert: true,
-//     badge: true,
-//     sound: true,
-//   );
-// }
-
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
@@ -53,7 +43,6 @@ Future<void> main() async {
     sound: true,
   );
 
-  // requestIOSPermissions(flutterLocalNotificationsPlugin);
   runApp(const MyApp());
 }
 
@@ -69,6 +58,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const MyHomePage(title: 'Synigence'),
       debugShowCheckedModeBanner: false,
+      initialRoute: '/',
     );
   }
 }
@@ -83,7 +73,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
+  late String initiateUrl;
   WebViewController? _controller;
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
@@ -96,6 +86,27 @@ class _MyHomePageState extends State<MyHomePage> {
       AndroidDeviceInfo androidDeviceInfo = await deviceInfo.androidInfo;
       return androidDeviceInfo.androidId; // unique ID on Android
     }
+  }
+
+  Future<bool> initUniLinks(String token) async {
+    // Platform messages may fail, so we use a try/catch PlatformException.
+    try {
+      final initialLink = await getInitialLink();
+      if (initialLink == null) {
+        initiateUrl =
+            'https://screens.wipoc.synigence.co/wi-pages/index.php?_dtoken=' +
+                token;
+      } else {
+        initiateUrl = initialLink.toString() + '?_dtoken=' + token;
+      }
+      print("Initial url ----> " + initiateUrl.toString());
+      // Parse the link and warn the user, if it is not correct,
+      // but keep in mind it could be `null`.
+    } on PlatformException {
+      // Handle exception by warning the user their action did not succeed
+      // return?
+    }
+    return true;
   }
 
   // Future<void> _initPackageInfo() async {
@@ -112,12 +123,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _firebaseMessaging.getToken().then((token) async {
       assert(token != null);
-      print("Firebase msg token: " +token!);
+      print("Firebase msg token: " + token!);
       _getId().then((id) async {
         await FirebaseFirestore.instance
-            .collection("device_id").doc(id).set
-          ({'token': token});
+            .collection("device_id")
+            .doc(id)
+            .set({'token': token});
       });
+      initUniLinks(token);
     });
 
     // _initPackageInfo();
@@ -133,7 +146,6 @@ class _MyHomePageState extends State<MyHomePage> {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
       if (notification != null && android != null) {
-
         flutterLocalNotificationsPlugin.show(
             notification.hashCode,
             notification.title,
@@ -189,16 +201,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-        body: UpgradeAlert(child: Center(
-            child: WebView(
-              initialUrl: 'https://screens.wipoc.synigence.co/wi-pages/index.php',
-              javascriptMode: JavascriptMode.unrestricted,
-              onWebViewCreated: (WebViewController webViewController) {
-                _controller = webViewController;
-              },
-            ))
-        ));
+        body: UpgradeAlert(
+            child: Center(
+                child: FutureBuilder(
+                    future: _getId(),
+                    builder: (context, snapshot) {
+                      return snapshot.data != null
+                          ? WebView(
+                              // initialUrl: 'initiateUrl',
+                              javascriptMode: JavascriptMode.unrestricted,
+                              onWebViewCreated:
+                                  (WebViewController webViewController) async {
+                                _controller = webViewController;
+                                await _controller!.loadUrl(initiateUrl);
+                              })
+                          : CircularProgressIndicator();
+                    }))));
   }
 }
