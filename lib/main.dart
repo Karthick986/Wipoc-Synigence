@@ -21,7 +21,7 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin1 =
-FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -40,12 +40,12 @@ Future<void> main() async {
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-      IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin>()
       ?.requestPermissions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -58,6 +58,11 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  // static Future<String> get _url async {
+  //   await Future.delayed(const Duration(seconds: 1));
+  //   return 'https://flutter.dev/';
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -86,38 +91,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late String initiateUrl;
   WebViewController? _controller;
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-
-  Future<String> _getId() async {
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    if (Theme.of(context).platform == TargetPlatform.iOS) {
-      IosDeviceInfo iosDeviceInfo = await deviceInfo.iosInfo;
-      return iosDeviceInfo.identifierForVendor; // unique ID on iOS
-    } else {
-      AndroidDeviceInfo androidDeviceInfo = await deviceInfo.androidInfo;
-      return androidDeviceInfo.androidId; // unique ID on Android
-    }
-  }
-
-  Future<bool> initUniLinks(String token) async {
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      final initialLink = await getInitialLink();
-      if (initialLink == null) {
-        initiateUrl =
-            'https://screens.wipoc.synigence.co/wi-pages/index.php?_dtoken=' +
-                token;
-      } else {
-        initiateUrl = initialLink.toString() + '?_dtoken=' + token;
-      }
-      print("Initial url ----> " + initiateUrl.toString());
-      // Parse the link and warn the user, if it is not correct,
-      // but keep in mind it could be `null`.
-    } on PlatformException {
-      // Handle exception by warning the user their action did not succeed
-      // return?
-    }
-    return true;
-  }
+  bool isLoading=true;
+  final _key = UniqueKey();
 
   // Future<void> _initPackageInfo() async {
   //   final PackageInfo info = await PackageInfo.fromPlatform();
@@ -131,6 +106,44 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _firebaseMessaging.requestPermission();
 
+    Future<String> _getId() async {
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        IosDeviceInfo iosDeviceInfo = await deviceInfo.iosInfo;
+        return iosDeviceInfo.identifierForVendor; // unique ID on iOS
+      } else {
+        AndroidDeviceInfo androidDeviceInfo = await deviceInfo.androidInfo;
+        return androidDeviceInfo.androidId; // unique ID on Android
+      }
+    }
+
+    Future<bool> initUniLinks(String token) async {
+      // Platform messages may fail, so we use a try/catch PlatformException.
+      try {
+        final initialLink = await getInitialLink();
+        if (initialLink == null) {
+          setState(() {
+            initiateUrl =
+                'https://screens.wipoc.synigence.co/wi-pages/index.php?_dtoken=' +
+                    token;
+          });
+          print("Initial url ----> " + initiateUrl.toString());
+        } else {
+          setState(() {
+            initiateUrl = initialLink.toString() + '?_dtoken=' + token;
+          });
+          print("Initial url ----> " + initiateUrl.toString());
+        }
+
+        // Parse the link and warn the user, if it is not correct,
+        // but keep in mind it could be `null`.
+      } on PlatformException {
+        // Handle exception by warning the user their action did not succeed
+        // return?
+      }
+      return true;
+    }
+
     _firebaseMessaging.getToken().then((token) async {
       assert(token != null);
       print("Firebase msg token: " + token!);
@@ -141,7 +154,6 @@ class _MyHomePageState extends State<MyHomePage> {
             .set({'token': token});
       });
       initUniLinks(token);
-
     });
 
     // _initPackageInfo();
@@ -170,6 +182,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 playSound: true,
                 icon: '@mipmap/ic_launcher',
               ),
+              iOS: const IOSNotificationDetails(
+                presentBadge: true,
+                presentAlert: true,
+                presentSound: true,
+              )
             ));
       }
     });
@@ -214,20 +231,26 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         body: UpgradeAlert(
-            child: Center(
-                child: FutureBuilder(
-                    future: _getId(),
-                    builder: (context, snapshot) {
-                      return snapshot.data != null
-                          ? WebView(
-                              // initialUrl: 'initiateUrl',
-                              javascriptMode: JavascriptMode.unrestricted,
-                              onWebViewCreated:
-                                  (WebViewController webViewController) async {
-                                _controller = webViewController;
-                                await _controller!.loadUrl(initiateUrl);
-                              })
-                          : const CircularProgressIndicator();
-                    }))));
+            child: Stack(
+              children: [
+              WebView(
+              key: _key,
+              initialUrl: initiateUrl,
+              javascriptMode: JavascriptMode.unrestricted,
+              onWebViewCreated:
+                  (WebViewController webViewController) async {
+                _controller = webViewController;
+                // await _controller!.loadUrl(initiateUrl);
+              },
+              onPageFinished: (finish) {
+                setState(() {
+                  isLoading = false;
+                });
+              },
+            ),
+            isLoading ? Center( child: CircularProgressIndicator(),)
+        : Stack()
+              ],
+            )));
   }
 }
