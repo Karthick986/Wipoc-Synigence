@@ -20,7 +20,8 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-NotificationAppLaunchDetails? notificationAppLaunchDetails;
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin1 =
+FlutterLocalNotificationsPlugin();
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -36,6 +37,15 @@ Future<void> main() async {
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -131,6 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
             .set({'token': token});
       });
       initUniLinks(token);
+
     });
 
     // _initPackageInfo();
@@ -216,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 _controller = webViewController;
                                 await _controller!.loadUrl(initiateUrl);
                               })
-                          : CircularProgressIndicator();
+                          : const CircularProgressIndicator();
                     }))));
   }
 }
